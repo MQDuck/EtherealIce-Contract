@@ -8,10 +8,6 @@ import "./EnumerableUintSet.sol";
 
 contract Cards is ICards {
     using SafeMath for uint;
-    using EnumerableUintSet for EnumerableUintSet.Set;
-
-    // equal to bytes4(keccak256("onERC721Received(address,address,uint,bytes)"))
-    bytes4 private constant ERC721_RECEIVED = 0x150b7a02;
 
     uint constant RARITY_COMMON = 0;
     uint constant RARITY_UNCOMMON = 1;
@@ -107,7 +103,6 @@ contract Cards is ICards {
         return ownerCards[owner].length;
     }
 
-    // TODO: test if storing value is cheaper
     function ownerOf(uint cardId) external view override returns (address) {
         require(cardOwners[cardId] != address(0), "ERC721: owner query for nonexistent card");
         return cardOwners[cardId];
@@ -171,7 +166,8 @@ contract Cards is ICards {
 
     // TODO
     function supportsInterface(bytes4 interfaceId) external view override returns (bool) {
-        return false;
+        return interfaceID == this.supportsInterface.selector
+        || interfaceId == changePublisher.selector ^ addBenefactor.selector ^ removeBenefactor.selector ^ getBenefactors.selector ^ getName.selector ^ getPricePerPack.selector ^ buyPacks.selector ^ getOwnerCards.selector ^ getCardsTypes.selector;
     }
 
     function addBenefactor(address benefactor) public override onlyPublisher {
@@ -190,8 +186,6 @@ contract Cards is ICards {
 
         emit BenefactorRemoved(benefactor);
     }
-
-    // END ERC721 STUFF
 
     function addTypes(
         uint numTypesCommon,
@@ -241,7 +235,6 @@ contract Cards is ICards {
     function printCard(uint cardType, address recipient) private {
         emit CardPrinted(cardsTypes.length, cardType, recipient);
 
-//        ownerCards[recipient].add(cards.length);
         addCard(recipient, cardsTypes.length);
         cardOwners[cardsTypes.length] = recipient;
         cardsTypes.push(cardType);
