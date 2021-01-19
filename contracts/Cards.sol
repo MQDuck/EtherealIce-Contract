@@ -4,11 +4,11 @@ pragma solidity ^0.7.0;
 
 import "./interfaces/ICards.sol";
 import "./lib/SafeMath.sol";
-import "./lib/EnumerableSet.sol";
+import "./EnumerableUintSet.sol";
 
 contract Cards is ICards {
     using SafeMath for uint;
-    using EnumerableSet for EnumerableSet.UintSet;
+    using EnumerableUintSet for EnumerableUintSet.Set;
 
     // bytes4(keccak256("onERC721Received(address,address,uint,bytes)"))
     bytes4 private constant ERC721_RECEIVED = 0x150b7a02;
@@ -20,7 +20,7 @@ contract Cards is ICards {
 
     uint[] cards;
 
-    mapping (address => EnumerableSet.UintSet) private ownerCards;
+    mapping (address => EnumerableUintSet.Set) private ownerCards;
     mapping (uint => address) private cardOwners;
     mapping (uint => address) private cardApprovals;
     mapping (address => mapping (address => bool)) private ownerOperators;
@@ -88,7 +88,7 @@ contract Cards is ICards {
 
     function balanceOf(address owner) external view override returns (uint) {
         require(owner != address(0), "ERC721: balance query for the zero address");
-        return ownerCards[owner].length();
+        return ownerCards[owner].values.length;
     }
 
     // TODO: test if storing value is cheaper
@@ -256,6 +256,10 @@ contract Cards is ICards {
                 rarityRoll >>= 6;
             }
         }
+    }
+
+    function getOwnerCards(address owner) external view override returns(uint[] memory) {
+        return ownerCards[owner].values;
     }
 }
 
