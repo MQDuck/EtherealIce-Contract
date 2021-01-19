@@ -108,24 +108,40 @@ contract Cards is ICards {
         return cardOwners[cardId];
     }
 
-    // TODO: make safe
-    function safeTransferFrom(address from, address to, uint cardId, bytes calldata data) external override {
-        _safeTransferFrom(from, to, cardId, data);
+    function safeTransferFrom(address from, address to, uint cardId, bytes calldata data) public override {
+        transferFrom(from, to, cardId);
+
+        if (to.isContract()) {
+            bytes memory returndata = to.functionCall(abi.encodeWithSelector(
+                    IERC721Receiver(to).onERC721Received.selector,
+                    msg.sender,
+                    from,
+                    cardId,
+                    data
+                ), "ERC721: transfer to non ERC721Receiver implementer");
+            bytes4 retval = abi.decode(returndata, (bytes4));
+            require(retval == ERC721_RECEIVED);
+        }
     }
 
-    function safeTransferFrom(address from, address to, uint cardId) external override {
-        _safeTransferFrom(from, to, cardId, "");
+    function safeTransferFrom(address from, address to, uint cardId) public override {
+        //safeTransferFrom(from, to, cardId, "");
+        transferFrom(from, to, cardId);
+
+        if (to.isContract()) {
+            bytes memory returndata = to.functionCall(abi.encodeWithSelector(
+                    IERC721Receiver(to).onERC721Received.selector,
+                    msg.sender,
+                    from,
+                    cardId,
+                    ""
+                ), "ERC721: transfer to non ERC721Receiver implementer");
+            bytes4 retval = abi.decode(returndata, (bytes4));
+            require(retval == ERC721_RECEIVED);
+        }
     }
 
-    function _safeTransferFrom(address from, address to, uint cardId, bytes memory data) private {
-        _transfer(from, to, cardId);
-    }
-
-    function transferFrom(address from, address to, uint cardId) external override {
-        _transfer(from, to, cardId);
-    }
-
-    function _transfer(address from, address to, uint cardId) private {
+    function transferFrom(address from, address to, uint cardId) public override {
         require(
             msg.sender == cardOwners[cardId] || ownerOperators[from][msg.sender] || msg.sender == cardApprovals[cardId],
             "ERC721: transfer caller is not owner or approved"
@@ -166,8 +182,8 @@ contract Cards is ICards {
 
     // TODO
     function supportsInterface(bytes4 interfaceId) external view override returns (bool) {
-        return interfaceID == this.supportsInterface.selector
-        || interfaceId == changePublisher.selector ^ addBenefactor.selector ^ removeBenefactor.selector ^ getBenefactors.selector ^ getName.selector ^ getPricePerPack.selector ^ buyPacks.selector ^ getOwnerCards.selector ^ getCardsTypes.selector;
+        return interfaceId == this.supportsInterface.selector
+        || interfaceId == this.changePublisher.selector ^ this.addBenefactor.selector ^ this.removeBenefactor.selector ^ this.getBenefactors.selector ^ this.getName.selector ^ this.getPricePerPack.selector ^ this.buyPacks.selector ^ this.getOwnerCards.selector ^ this.getCardsTypes.selector;
     }
 
     function addBenefactor(address benefactor) public override onlyPublisher {
