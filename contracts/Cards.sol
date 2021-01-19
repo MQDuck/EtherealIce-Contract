@@ -261,17 +261,22 @@ contract Cards is ICards {
         uint numTypesRare,
         uint numTypesRarest
     ) private onlyPublisher {
-        for (; numTypes < numTypesCommon; ++numTypes) {
+        uint stop = numTypes + numTypesCommon;
+        for (uint i = 0; i < numTypesCommon; ++i) {
             typesCommon.push(numTypes);
+            ++numTypes;
         }
-        for (; numTypes < numTypesCommon + numTypesUncommon; ++numTypes) {
+        for (uint i = 0; i < numTypesUncommon; ++i) {
             typesUncommon.push(numTypes);
+            ++numTypes;
         }
-        for (; numTypes < numTypesUncommon + numTypesUncommon + numTypesRare; ++numTypes) {
+        for (uint i = 0; i < numTypesRare; ++i) {
             typesRare.push(numTypes);
+            ++numTypes;
         }
-        for (; numTypes < numTypesCommon + numTypesUncommon + numTypesRare + numTypesRarest; ++numTypes) {
+        for (uint i = 0; i < numTypesRarest; ++i) {
             typesRarest.push(numTypes);
+            ++numTypes;
         }
     }
 
