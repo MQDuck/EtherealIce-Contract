@@ -10,7 +10,7 @@ contract Cards is ICards {
     using SafeMath for uint;
     using EnumerableUintSet for EnumerableUintSet.Set;
 
-    // bytes4(keccak256("onERC721Received(address,address,uint,bytes)"))
+    // equal to bytes4(keccak256("onERC721Received(address,address,uint,bytes)"))
     bytes4 private constant ERC721_RECEIVED = 0x150b7a02;
 
     uint constant RARITY_COMMON = 0;
@@ -18,15 +18,31 @@ contract Cards is ICards {
     uint constant RARITY_RARE = 2;
     uint constant RARITY_RAREST = 3;
 
-    uint[] cards;
+    uint[] cardsTypes;
 
-    mapping (address => EnumerableUintSet.Set) private ownerCards;
-    mapping (uint => address) private cardOwners;
-    mapping (uint => address) private cardApprovals;
-    mapping (address => mapping (address => bool)) private ownerOperators;
+    mapping(address => uint[]) ownerCards;
+    mapping(address => mapping(uint => uint)) ownerCardsIdx;
+
+    function addCard(address owner, uint cardId) private {
+        require(ownerCardsIdx[owner][cardId] == 0, "card already in set");
+        ownerCards[owner].push(cardId);
+        ownerCardsIdx[owner][cardId] = ownerCards[owner].length;
+    }
+    
+    function removeCard(address owner, uint cardId) private {
+        require(ownerCardsIdx[owner][cardId] != 0, "card not in set");
+        ownerCards[owner][ownerCardsIdx[owner][cardId] - 1] = ownerCards[owner][ownerCards[owner].length - 1];
+        ownerCardsIdx[owner][ownerCards[owner][ownerCards[owner].length - 1]] = ownerCardsIdx[owner][cardId];
+        ownerCardsIdx[owner][cardId] = 0;
+        delete ownerCards[owner][ownerCards[owner].length - 1];
+    }
+
+    mapping(uint => address) private cardOwners;
+    mapping(uint => address) private cardApprovals;
+    mapping(address => mapping(address => bool)) private ownerOperators;
 
     address[] private benefactors;
-    mapping (address => uint) private benefactorIdx;
+    mapping(address => uint) private benefactorIdx;
 
     uint numTypes;
     uint[] typesCommon;
@@ -88,7 +104,7 @@ contract Cards is ICards {
 
     function balanceOf(address owner) external view override returns (uint) {
         require(owner != address(0), "ERC721: balance query for the zero address");
-        return ownerCards[owner].values.length;
+        return ownerCards[owner].length;
     }
 
     // TODO: test if storing value is cheaper
@@ -123,8 +139,8 @@ contract Cards is ICards {
         require(to != address(0), "ERC721: transfer to is zero address");
         require(cardOwners[cardId] != address(0), "ERC721: transfer call for nonexistent card");
 
-        ownerCards[from].remove(cardId);
-        ownerCards[to].add(cardId);
+        removeCard(from, cardId);
+        addCard(to, cardId);
         cardOwners[cardId] = to;
         cardApprovals[cardId] = address(0);
 
@@ -197,7 +213,7 @@ contract Cards is ICards {
         }
     }
 
-    function getBenefactors() external view override returns(address[] memory) {
+    function getBenefactors() external view override returns (address[] memory) {
         return benefactors;
     }
 
@@ -208,26 +224,27 @@ contract Cards is ICards {
         emit PublisherChanged(newPublisher);
     }
 
-    function getName() external view override returns(string memory) {
+    function getName() external view override returns (string memory) {
         return name;
     }
 
-    function getPricePerPack() external view override returns(uint) {
+    function getPricePerPack() external view override returns (uint) {
         return pricePerPack;
     }
 
     // TODO: Replace with something secure like Chainlink VRF.
-    function random() private returns(uint) {
+    function random() private returns (uint) {
         ++randomCount;
         return uint(keccak256(abi.encodePacked(block.difficulty, block.timestamp, randomCount)));
     }
 
     function printCard(uint cardType, address recipient) private {
-        emit CardPrinted(cards.length, cardType, recipient);
+        emit CardPrinted(cardsTypes.length, cardType, recipient);
 
-        ownerCards[recipient].add(cards.length);
-        cardOwners[cards.length] = recipient;
-        cards.push(cardType);
+//        ownerCards[recipient].add(cards.length);
+        addCard(recipient, cardsTypes.length);
+        cardOwners[cardsTypes.length] = recipient;
+        cardsTypes.push(cardType);
     }
 
     function buyPacks(uint numPacks, address recipient, address payable benefactor) external payable override {
@@ -258,8 +275,12 @@ contract Cards is ICards {
         }
     }
 
-    function getOwnerCards(address owner) external view override returns(uint[] memory) {
-        return ownerCards[owner].values;
+    function getOwnerCards(address owner) external view override returns (uint[] memory) {
+        return ownerCards[owner];
+    }
+
+    function getCardsTypes() external view override returns(uint[] memory) {
+        return cardsTypes;
     }
 }
 

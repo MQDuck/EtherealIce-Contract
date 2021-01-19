@@ -19,4 +19,5 @@ interface ICards is IERC721 {
     function getPricePerPack() external view returns (uint price);
     function buyPacks(uint numPacks, address recipient, address payable benefactor) external payable;
     function getOwnerCards(address owner) external view returns(uint[] memory);
+    function getCardsTypes() external view returns(uint[] memory);
 }
