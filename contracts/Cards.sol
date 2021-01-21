@@ -4,12 +4,9 @@ pragma solidity ^0.7.0;
 
 import "./interfaces/ICards.sol";
 import "./interfaces/IERC721Receiver.sol";
-import "./lib/SafeMath.sol";
 import "./lib/Address.sol";
-import "./EnumerableUintSet.sol";
 
 contract Cards is ICards {
-    using SafeMath for uint;
     using Address for address;
 
     uint constant RARITY_COMMON = 0;
@@ -34,9 +31,9 @@ contract Cards is ICards {
     // Mapping from owner address to operator approvals
     mapping(address => mapping(address => bool)) private ownerOperators;
 
-    // List of addresses that can be the monetary benefactor of pack purchases
-    address[] private benefactors;
-    mapping(address => uint) private benefactorIdx;
+    // List of addresses that can be the monetary beneficiary of pack purchases
+    address[] private beneficiaries;
+    mapping(address => uint) private beneficiaryIdx;
 
     // Total number of card types
     uint private numTypes;
@@ -84,7 +81,7 @@ contract Cards is ICards {
         uint _rarityMinRollUncommon,
         uint _rarityMinRollRare,
         uint _rarityMinRollRarest,
-        address[] memory _benefactors
+        address[] memory _beneficiaries
     ) {
         require(
             _rarityMinRollUncommon < _rarityMinRollRare
@@ -101,8 +98,8 @@ contract Cards is ICards {
         rarityMinRollRare = _rarityMinRollRare;
         rarityMinRollRarest = _rarityMinRollRarest;
 
-        for (uint i = 0; i < _benefactors.length; ++i) {
-            addBenefactor(_benefactors[i]);
+        for (uint i = 0; i < _beneficiaries.length; ++i) {
+            addBeneficiary(_beneficiaries[i]);
         }
 
         addTypes(numTypesCommon, numTypesUncommon, numTypesRare, numTypesRarest);
@@ -222,31 +219,31 @@ contract Cards is ICards {
      */
     function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {
         return interfaceId == this.supportsInterface.selector
-        || interfaceId == this.changePublisher.selector ^ this.addBenefactor.selector ^ this.removeBenefactor.selector ^ this.getBenefactors.selector ^ this.getName.selector ^ this.getPricePerPack.selector ^ this.buyPacks.selector ^ this.getOwnerCards.selector ^ this.getCardsTypes.selector;
+        || interfaceId == this.changePublisher.selector ^ this.addBeneficiary.selector ^ this.removeBeneficiary.selector ^ this.getBeneficiaries.selector ^ this.getName.selector ^ this.getPricePerPack.selector ^ this.buyPacks.selector ^ this.getOwnerCards.selector ^ this.getCardsTypes.selector;
     }
 
     /**
-     * @dev Adds address to the list of approved benefactors
+     * @dev Adds address to the list of approved beneficiaries
     */
-    function addBenefactor(address benefactor) public override onlyPublisher {
-        require(benefactorIdx[benefactor] == 0, "benefactor already approved");
-        benefactors.push(benefactor);
-        benefactorIdx[benefactor] = benefactors.length;
+    function addBeneficiary(address beneficiary) public override onlyPublisher {
+        require(beneficiaryIdx[beneficiary] == 0, "beneficiary already approved");
+        beneficiaries.push(beneficiary);
+        beneficiaryIdx[beneficiary] = beneficiaries.length;
 
-        emit BenefactorApproved(benefactor);
+        emit BeneficiaryApproved(beneficiary);
     }
 
 
     /**
-     * @dev Removes address from the list of approved benefactors
+     * @dev Removes address from the list of approved beneficiaries
     */
-    function removeBenefactor(address benefactor) public override onlyPublisher {
-        require(benefactorIdx[benefactor] != 0, "benefactor is already not approved");
-        benefactors[benefactorIdx[benefactor] - 1] = benefactors[benefactors.length - 1];
-        delete benefactors[benefactors.length - 1];
-        benefactorIdx[benefactor] = 0;
+    function removeBeneficiary(address beneficiary) public override onlyPublisher {
+        require(beneficiaryIdx[beneficiary] != 0, "beneficiary is already not approved");
+        beneficiaries[beneficiaryIdx[beneficiary] - 1] = beneficiaries[beneficiaries.length - 1];
+        beneficiaries.pop();
+        beneficiaryIdx[beneficiary] = 0;
 
-        emit BenefactorRemoved(benefactor);
+        emit BeneficiaryRemoved(beneficiary);
     }
 
 
@@ -261,7 +258,6 @@ contract Cards is ICards {
         uint numTypesRare,
         uint numTypesRarest
     ) private onlyPublisher {
-        uint stop = numTypes + numTypesCommon;
         for (uint i = 0; i < numTypesCommon; ++i) {
             typesCommon.push(numTypes);
             ++numTypes;
@@ -280,8 +276,8 @@ contract Cards is ICards {
         }
     }
 
-    function getBenefactors() external view override returns (address[] memory) {
-        return benefactors;
+    function getBeneficiaries() external view override returns (address[] memory) {
+        return beneficiaries;
     }
 
     function changePublisher(address newPublisher) external override onlyPublisher {
@@ -316,7 +312,7 @@ contract Cards is ICards {
         ownerCards[owner][ownerCardsIdx[owner][cardId] - 1] = ownerCards[owner][ownerCards[owner].length - 1];
         ownerCardsIdx[owner][ownerCards[owner][ownerCards[owner].length - 1]] = ownerCardsIdx[owner][cardId];
         ownerCardsIdx[owner][cardId] = 0;
-        delete ownerCards[owner][ownerCards[owner].length - 1];
+        ownerCards[owner].pop();
     }
 
     // TODO: Replace with something secure like Chainlink VRF.
@@ -340,13 +336,13 @@ contract Cards is ICards {
     }
 
     /**
-     * @dev Randomly generates new cards for the recipient address, after paying a chosen benefactor address
+     * @dev Randomly generates new cards for the recipient address, after paying a chosen beneficiary address
     */
-    function buyPacks(uint numPacks, address recipient, address payable benefactor) external payable override {
+    function buyPacks(uint numPacks, address recipient, address payable beneficiary) external payable override {
         require(msg.value == numPacks * pricePerPack, "numPacks and message value do not match");
-        require(benefactorIdx[benefactor] != 0, "benefactor is not in the approved list");
+        require(beneficiaryIdx[beneficiary] != 0, "beneficiary is not in the approved list");
 
-        benefactor.transfer(msg.value);
+        beneficiary.transfer(msg.value);
 
         emit PacksBought(numPacks, msg.sender);
 
@@ -378,23 +374,3 @@ contract Cards is ICards {
         return cardsTypes;
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
